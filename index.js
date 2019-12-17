@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const bodyParser = require('body-parser')
 const app = express()
+const Transfer = require('./models/transfer')
 const currencyServices = require('./services/currencies').default
 const cors = require('cors')
 const morgan = require('morgan')
@@ -19,7 +20,7 @@ let currenciesLatest = {}
 
 const convert = (amount, ratesFrom, ratesTo) => {
   const amountTo = Math.abs(amount) * ratesTo / ratesFrom
-  return amountTo.toFixed(2)
+  return Number(amountTo.toFixed(2))
 }
 
 app.get('/api/currencies', (request, response) => {
@@ -30,6 +31,8 @@ app.get('/api/currencies', (request, response) => {
       currenciesList = currencies
       console.log('tot: ', currenciesList)
       response.json(currenciesList) //The toJSON method we defined transforms object into a string just to be safe.
+    }).catch(error => {
+      console.log('currencies - getCurrencies data service error: ', error)
     })
 
 })
@@ -42,30 +45,44 @@ app.get('/api/latest', (request, response) => {
       currenciesLatest = currencies
       console.log('tot: ', currenciesLatest)
       response.json(currenciesLatest) //The toJSON method we defined transforms object into a string just to be safe.
+    }).catch(error => {
+      console.log('latest - getLatest data service error: ', error)
     })
 
 })
 
-app.post('/api/convert', (request, response) => {
+app.post('/api/convert', (request, response, next) => {
   console.log('server convert')
   let body = request.body
   console.log('body: ', body)
-  const transfer = {
-    amountFrom: body.fromAmount,
+  const transfer = new Transfer({
     currencyFrom: body.fromCurrency,
+    amountFrom: Number(Number(body.fromAmount).toFixed(2)),
     currencyTo: body.toCurrency
-  }
+  })
 
   currencyServices
     .getLatest()
     .then(latests => {
       console.log('latests: ', latests)
       currenciesLatest = latests
-      transfer.ratesFrom = currenciesLatest.rates[transfer.currencyFrom]
-      transfer.ratesTo = currenciesLatest.rates[transfer.currencyTo]
-      transfer.amountTo = convert(transfer.amountFrom, transfer.ratesFrom, transfer.ratesTo)
+      transfer.amountTo = convert(
+        transfer.amountFrom,
+        currenciesLatest.rates[transfer.currencyFrom],
+        currenciesLatest.rates[transfer.currencyTo]
+      )
+      transfer.convertedInDollars = Number(
+        (transfer.amountFrom / currenciesLatest.rates[transfer.currencyFrom]).toFixed(2)
+      )
+      transfer.date = new Date()
       console.log('transfer: ', transfer)
-      response.json(transfer) //The toJSON method we defined transforms object into a string just to be safe.
+      transfer.save()
+        .then(newTransfer => newTransfer.toJSON())
+        .then(newTransferFormatted => response.json(newTransferFormatted))
+        .catch(error => next(error))
+    })
+    .catch(error => {
+      console.log('convert - getLatest service error: ', error)
     })
 
 })
