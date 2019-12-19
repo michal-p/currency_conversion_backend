@@ -20,7 +20,7 @@ const getLatest = () => {
 const getCurrencies = () => {
   const request = axios.get(createUrl(endPoints.currencies))
   return request.then(response => {
-    console.log('getCurrencies promise fulfilled')
+    // console.log('getCurrencies promise fulfilled')
     return response.data
   })
 }
