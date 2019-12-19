@@ -23,17 +23,24 @@ const convert = (amount, ratesFrom, ratesTo) => {
   return Number(amountTo)
 }
 
+app.get('/api/transfers', (request, response, next) => {
+  console.log('server transfers')
+  Transfer.find({})
+    .then(transfers => {
+      response.json(transfers.map(tran => tran.toJSON()))
+    }).catch(error => {
+      console.log('transfers - getTransfers data service error: ', error)
+      next(error)
+    })
+})
+
 app.get('/api/currencies', (request, response, next) => {
-  console.log('server currencies')
   currencyServices
     .getCurrencies()
     .then(currencies => {
       currenciesList = currencies
       response.json(currenciesList)
-    }).catch(error => {
-      console.log('currencies - getCurrencies data service error: ', error)
-      next(error)
-    })
+    }).catch(error => next(error))
 })
 
 app.get('/api/latest', (request, response, next) => {
@@ -70,8 +77,7 @@ app.get('/api/statistics', (request, response, next) => {
           response.json(obj)
         }).catch(error => next(error))
       }).catch(error => next(error))
-    })
-    .catch(error => next(error))
+    }).catch(error => next(error))
 })
 
 app.post('/api/convert', (request, response, next) => {
@@ -97,8 +103,7 @@ app.post('/api/convert', (request, response, next) => {
         .then(newTransfer => newTransfer.toJSON())
         .then(newTransferFormatted => response.json(newTransferFormatted))
         .catch(error => next(error))
-    })
-    .catch(error => next(error))
+    }).catch(error => next(error))
 
 })
 
