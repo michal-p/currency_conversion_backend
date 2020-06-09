@@ -1,8 +1,8 @@
-require('dotenv').config()
+const config = require('./utils/config')
 const express = require('express')
 const bodyParser = require('body-parser')
 const app = express()
-const Transfer = require('./models/transfer')
+const transfersRouter = require('./controllers/transfers')
 const currencyServices = require('./services/currencies').default
 const cors = require('cors')
 const morgan = require('morgan')
@@ -23,17 +23,6 @@ const convert = (amount, ratesFrom, ratesTo) => {
   return Number(amountTo)
 }
 
-app.get('/api/transfers', (request, response, next) => {
-  console.log('server transfers')
-  Transfer.find({})
-    .then(transfers => {
-      response.json(transfers.map(tran => tran.toJSON()))
-    }).catch(error => {
-      console.log('transfers - getTransfers data service error: ', error)
-      next(error)
-    })
-})
-
 app.get('/api/currencies', (request, response, next) => {
   currencyServices
     .getCurrencies()
@@ -49,34 +38,6 @@ app.get('/api/latest', (request, response, next) => {
     .then(currencies => {
       currenciesLatest = currencies
       response.json(currenciesLatest)
-    }).catch(error => next(error))
-})
-
-app.get('/api/statistics', (request, response, next) => {
-  let obj = {}
-  Transfer.countDocuments()
-    .then(result => {
-      obj.amountRequests = result
-      Transfer.aggregate(
-        [{ $group: {
-          _id: null,
-          total: { $sum: '$convertedInDollars' } } }]
-      ).then(result => {
-        obj.amountConvertedInUSD = Number(result[0].total.toFixed(2))
-        Transfer.aggregate(
-          [{ $group:{
-            _id: '$currencyTo',
-            count: { $sum: 1 }
-          } },
-          { $sort:{
-            'count': -1
-          } },
-          { $limit: 1 }]
-        ).then(result => {
-          obj.popular = result[0]._id
-          response.json(obj)
-        }).catch(error => next(error))
-      }).catch(error => next(error))
     }).catch(error => next(error))
 })
 
@@ -104,8 +65,9 @@ app.post('/api/convert', (request, response, next) => {
         .then(newTransferFormatted => response.json(newTransferFormatted))
         .catch(error => next(error))
     }).catch(error => next(error))
-
 })
+
+app.use('/api/transfers', transfersRouter)
 
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: 'unknown endpoint' })
@@ -123,7 +85,7 @@ const errorHandler = (error, request, response, next) => {
 
 app.use(errorHandler)
 
-const PORT = process.env.PORT || 3001
+const PORT = config.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`)
+  console.log(`Server is running on port ${config.PORT}`)
 })

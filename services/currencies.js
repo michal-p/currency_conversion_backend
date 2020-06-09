@@ -1,6 +1,7 @@
+const config = require('../utils/config')
 const axios = require('axios')
 const baseUrl = 'https://openexchangerates.org/api/'
-const apiID = process.env.API_KEY
+const apiID = config.API_KEY
 const endPoints = {
   latest: 'latest.json',
   currencies: 'currencies.json'
