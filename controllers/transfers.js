@@ -1,5 +1,7 @@
 const transfersRouter = require('express').Router()
 const Transfer = require('../models/transfer')
+const currencyServices = require('../services/currencies')
+const helper = require('../utils/helper')
 
 transfersRouter.get('/', (request, response, next) => {
   console.log('server transfers')
@@ -37,6 +39,31 @@ transfersRouter.get('/statistics', (request, response, next) => {
           response.json(obj)
         }).catch(error => next(error))
       }).catch(error => next(error))
+    }).catch(error => next(error))
+})
+
+transfersRouter.post('/convert', (request, response, next) => {
+  let body = request.body
+  const transfer = new Transfer({
+    currencyFrom: body.fromCurrency,
+    amountFrom: Number(Math.abs(body.fromAmount)),
+    currencyTo: body.toCurrency
+  })
+
+  currencyServices
+    .getLatest()
+    .then(currenciesLatest => {
+      transfer.amountTo = helper.convert(
+        transfer.amountFrom,
+        currenciesLatest.rates[transfer.currencyFrom],
+        currenciesLatest.rates[transfer.currencyTo]
+      )
+      transfer.convertedInDollars = Number(transfer.amountFrom / currenciesLatest.rates[transfer.currencyFrom])
+      transfer.date = new Date()
+      transfer.save()
+        .then(newTransfer => newTransfer.toJSON())
+        .then(newTransferFormatted => response.json(newTransferFormatted))
+        .catch(error => next(error))
     }).catch(error => next(error))
 })
 
